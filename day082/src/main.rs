@@ -13,8 +13,7 @@ fn main() {
     let t0 = Instant::now();
     let input_path = env::args().nth(1).expect("no input path");
 
-    let mut map =
-        fs::read(&input_path).unwrap_or_else(|_| panic!("unable to read: {input_path:?}"));
+    let map = fs::read(&input_path).unwrap_or_else(|_| panic!("unable to read: {input_path:?}"));
     println!("Read {input_path}.");
 
     // parse map for xlen and positions of all antenas
@@ -41,96 +40,45 @@ fn main() {
     let mut anodes: HashMap<u8, HashSet<usize>> = HashMap::new();
     let ylen = map.len() / (xlen + 1);
     for (value, value_positions) in positions {
+        let positions = anodes.entry(value).or_default();
+        let mut insert = |x: usize, y: usize| {
+            if (x < xlen) & (y < ylen) {
+                positions.insert(y * (xlen + 1) + x);
+                positions.insert(y * (xlen + 1) + x);
+            }
+        };
         for (index, pos_a) in value_positions.iter().enumerate() {
             for pos_b in &value_positions[index + 1..] {
-                // println!("{value} {pos_a} {pos_b}");
-                //
-                // fn next(x, y, dx, dy, )
-                struct Delta(usize, usize, bool, bool);
-                let (mut ax, mut ay) = coords(pos_a, &xlen);
+                let (ax, ay) = coords(pos_a, &xlen);
                 let (bx, by) = coords(pos_b, &xlen);
 
                 let dx = bx.abs_diff(ax);
                 let dy = by.abs_diff(ay);
-                let signx = bx >= ax;
-                let signy = by >= ay;
+                let signx = bx >= ax; // avoid overflows by saving the sing
 
-                dbg!(ax, ay, bx, by, dx, dy, signx, signy);
                 let (mut nx, mut ny): (usize, usize) = (ax, ay);
-
                 while (nx < xlen) & (ny < ylen) {
+                    insert(nx, ny);
                     if signx {
-                        nx = ax.checked_sub(dx).unwrap_or(usize::MAX);
-                        ny = ay.checked_sub(dy).unwrap_or(usize::MAX);
+                        nx = nx.checked_sub(dx).unwrap_or(usize::MAX);
+                        ny = ny.checked_sub(dy).unwrap_or(usize::MAX);
                     } else {
-                        nx = ax.checked_add(dx).unwrap_or(usize::MAX);
-                        ny = ay.checked_sub(dy).unwrap_or(usize::MAX);
-                    }
-                    dbg!(nx, ny);
-                    if (nx < xlen) & (ny < ylen) {
-                        map[nx + (ny * (xlen + 1))] = b'#';
-                        (ax, ay) = (nx, ny);
+                        nx = nx.checked_add(dx).unwrap_or(usize::MAX);
+                        ny = ny.checked_sub(dy).unwrap_or(usize::MAX);
                     }
                 }
 
-                if signx {
-                    let nx = bx.checked_add(dx).unwrap_or(usize::MAX);
-                    let ny = by.checked_add(dy).unwrap_or(usize::MAX);
-                    dbg!(nx, ny);
-                    if (nx < xlen) & (ny < ylen) {
-                        map[nx + (ny * (xlen + 1))] = b'#';
-                    }
-                } else {
-                    let nx = bx.checked_sub(dx).unwrap_or(usize::MAX);
-                    let ny = by.checked_add(dy).unwrap_or(usize::MAX);
-                    dbg!(nx, ny);
-                    if (nx < xlen) & (ny < ylen) {
-                        map[nx + (ny * (xlen + 1))] = b'#';
+                let (mut nx, mut ny): (usize, usize) = (bx, by);
+                while (nx < xlen) & (ny < ylen) {
+                    insert(nx, ny);
+                    if signx {
+                        nx = nx.checked_add(dx).unwrap_or(usize::MAX);
+                        ny = ny.checked_add(dy).unwrap_or(usize::MAX);
+                    } else {
+                        nx = nx.checked_sub(dx).unwrap_or(usize::MAX);
+                        ny = ny.checked_add(dy).unwrap_or(usize::MAX);
                     }
                 }
-                println!("{}", str::from_utf8(&map).expect("ERROR"));
-
-                break;
-
-                // let (nax, nbx) = if ax < bx {
-                //     let dx = bx - ax;
-                //     (
-                //         ax.checked_sub(dx).unwrap_or(usize::MAX),
-                //         bx.checked_add(dx).unwrap_or(usize::MAX),
-                //     )
-                // } else {
-                //     let dx = ax - bx;
-                //     (
-                //         ax.checked_add(dx).unwrap_or(usize::MAX),
-                //         bx.checked_sub(dx).unwrap_or(usize::MAX),
-                //     )
-                // };
-                // let (nay, nby) = if ay < by {
-                //     let dy = by - ay;
-                //     (
-                //         ay.checked_sub(dy).unwrap_or(usize::MAX),
-                //         by.checked_add(dy).unwrap_or(usize::MAX),
-                //     )
-                // } else {
-                //     let dy = ay - by;
-                //     (
-                //         ay.checked_add(dy).unwrap_or(usize::MAX),
-                //         by.checked_sub(dy).unwrap_or(usize::MAX),
-                //     )
-                // };
-                // // println!("{ax}|{ay}  /  {bx}|{by}  ~  {nax}|{nay}  >  {nbx}|{nby}");
-                // let positions = anodes.entry(value).or_default();
-                // if (nax < xlen) & (nay < ylen) {
-                //     let nposa = nay * (xlen + 1) + nax;
-                //     positions.insert(nposa);
-                // }
-                // if (nbx < xlen) & (nby < ylen) {
-                //     let nposb = nby * (xlen + 1) + nbx;
-                //     positions.insert(nposb);
-                // }
-                // dbg!(&anodes);
-
-                // println!("{}", str::from_utf8(&map).expect("ERROR"));
             }
         }
     }
@@ -141,6 +89,18 @@ fn main() {
                 acc.extend(set);
                 acc
             });
+    let rendered_map: Vec<u8> = map
+        .into_iter()
+        .enumerate()
+        .map(|(index, value)| {
+            if unique_anodes.contains(&index) && value == FREE {
+                b'#'
+            } else {
+                value
+            }
+        })
+        .collect();
+    println!("{}", str::from_utf8(&rendered_map).expect("ERROR"));
     println!(
         "Solution: {} / Duration: {:.6?}",
         unique_anodes.len(),
