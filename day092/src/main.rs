@@ -1,41 +1,58 @@
 use std::error::Error;
-use std::io::Empty;
+use std::iter;
 use std::time::Instant;
 use std::{env, fs};
 
-fn display(layout: &Vec<File>) {
-    layout.iter().for_each(|file| {
+#[derive(Debug)]
+enum Block {
+    File(u8, u64),
+    Empty(u8),
+}
+
+fn display(layout: &[Block]) {
+    for block in layout {
         print!(
             "{}",
-            match file {
-                File::Number(length, number) => format!("{number}").repeat(*length as usize),
-                File::Empty(length) => ".".repeat(*length as usize),
+            match block {
+                Block::File(length, number) => format!("{number}").repeat(*length as usize),
+                Block::Empty(length) => ".".repeat(*length as usize),
             }
         );
-    });
+    }
     println!();
 }
 
-#[derive(Debug)]
-enum File {
-    Number(u8, u8),
-    Empty(u8),
+fn checksum(layout: &[Block]) -> u64 {
+    layout
+        .iter()
+        .flat_map(|block| match block {
+            Block::File(length, number) => iter::repeat_n(*number, *length as usize),
+            Block::Empty(length) => iter::repeat_n(0, *length as usize),
+        })
+        .enumerate()
+        .fold(0, |acc, (disc_index, number)| {
+            acc + disc_index as u64 * u64::from(number)
+        })
 }
-// fn unpack()
+
+fn replace<T>(layout: &mut Vec<T>, index: usize, element: T) -> T {
+    layout.insert(index, element);
+    layout.remove(index + 1)
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let t0 = Instant::now();
     let input_path = env::args().nth(1).expect("no input path");
     let input = fs::read_to_string(&input_path)?;
-    let mut disc_layout: Vec<File> = input
+    let mut disc_layout: Vec<Block> = input
         .trim()
         .chars()
         .enumerate()
         .map(|(index, digit)| {
             let length = digit.to_digit(10).expect("unable to parse digit") as u8;
             match index % 2 == 0 {
-                true => File::Number(length, (index / 2) as u8),
-                false => File::Empty(length),
+                true => Block::File(length, (index / 2) as u64),
+                false => Block::Empty(length),
             }
         })
         .collect();
@@ -43,66 +60,48 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     display(&disc_layout);
 
-    let mut disc_index: usize = 0;
-    let mut checksum = 0;
+    let mut idx1 = disc_layout.len() - 1;
 
-    let mut new_disc_layout: Vec<u8> = Vec::new();
-
-    let (mut idx0, idx1) = (0, disc_layout.len() - 1);
-
-    loop {
-        let file1 = &disc_layout[idx1];
-        if let File::Empty(_) = file1 {
+    while idx1 > 0 {
+        if let Block::Empty(_) = disc_layout[idx1] {
+            idx1 -= 1;
             continue;
         }
-        for idx0 in 1..disc_layout.len() - 1 {
-            let file0 = &disc_layout[idx0];
-            match file0 {
-                File::Number(_, _) => continue,
-                File::Empty(length) => disc_layout.insert(idx0, file1),
-            }
-            if let File::Number(_, _) = file0 {
+
+        match disc_layout[idx1] {
+            Block::Empty(_) => {
+                idx1 -= 1;
                 continue;
             }
-            if file0.0 >= file1.0 {
-                disc_layout.insert(idx0, file1);
+            Block::File(length1, _) => {
+                for idx0 in 1..idx1 {
+                    match disc_layout[idx0] {
+                        Block::File(_, _) => continue,
+                        Block::Empty(length0) if length0 >= length1 => {
+                            println!("{idx1} -> {idx0}");
+                            let file1 = replace(&mut disc_layout, idx1, Block::Empty(length1));
+                            replace(&mut disc_layout, idx0, file1);
+                            let empty_space = length0 - length1;
+                            if empty_space > 0 {
+                                disc_layout.insert(idx0 + 1, Block::Empty(empty_space));
+                            } else {
+                                idx1 -= 1;
+                            }
+                            // display(&disc_layout);
+                            break;
+                        }
+                        Block::Empty(_) => {}
+                    }
+                }
             }
         }
-
         idx1 -= 1;
-
-        if idx1 < 1 {
-            break;
-        }
     }
 
-    // for file in disc_layout.iter().rev() {
-    //     dbg!(file);
-
-    //     for idx0 in 0..disc_layout.len() - 1 {}
-    // }
-
-    // let (mut idx0, mut idx1): (usize, usize) = (0, disc_layout.len() - 1);
-    // let mut offest = 0;
-    // for idx1 in (1..disc_layout.len()).rev() {
-    //     dbg!(idx1);
-    //     let idx1_is_file = idx1 % 2 == 0;
-    //     let idx1_file_index = idx1 / 2;
-
-    //     for idx0 in 1..idx1 + 1 {
-    //         dbg!(idx0);
-    //         let idx0_is_free = idx0 % 2 == 1;
-    //         if idx0_is_free && disc_layout[idx0] >= disc_layout[idx1] {
-    //             // move file
-    //             //
-    //             disc_layout.insert(idx0);
-    //             disc_layout.insert(idx0, 0);
-
-    //             break;
-    //         }
-    //     }
-    // }
-    // println!();
-    println!("Solution: {} / Duration: {:.6?}", checksum, t0.elapsed());
+    println!(
+        "Solution: {} / Duration: {:.6?}",
+        checksum(&disc_layout),
+        t0.elapsed()
+    );
     Ok(())
 }
