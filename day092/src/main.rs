@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::iter;
+use std::mem;
 use std::time::Instant;
 use std::{env, fs};
 
@@ -33,11 +34,6 @@ fn checksum(layout: &[Block]) -> u64 {
         .fold(0, |acc, (disc_index, number)| {
             acc + disc_index as u64 * u64::from(number)
         })
-}
-
-fn replace<T>(layout: &mut Vec<T>, index: usize, element: T) -> T {
-    layout.insert(index, element);
-    layout.remove(index + 1)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -78,9 +74,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                     match disc_layout[idx0] {
                         Block::File(_, _) => continue,
                         Block::Empty(length0) if length0 >= length1 => {
-                            println!("{idx1} -> {idx0}");
-                            let file1 = replace(&mut disc_layout, idx1, Block::Empty(length1));
-                            replace(&mut disc_layout, idx0, file1);
+                            // println!("{idx1} -> {idx0}");
+                            let file1 = mem::replace(&mut disc_layout[idx1], Block::Empty(length1));
+                            disc_layout[idx0] = file1;
                             let empty_space = length0 - length1;
                             if empty_space > 0 {
                                 disc_layout.insert(idx0 + 1, Block::Empty(empty_space));
