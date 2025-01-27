@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .collect();
     let solution0: u64 = results0.iter().sum();
     println!(
-        "Solution Day 1: {} / Duration: {:.6?}",
+        "Solution Part 1: {} / Duration: {:.6?}",
         solution0,
         t0.elapsed()
     );
@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .collect();
     let solution1: u64 = results1.iter().sum();
     println!(
-        "Solution Day 2: {} / Duration: {:.6?}",
+        "Solution Part 2: {} / Duration: {:.6?}",
         solution1,
         t1.elapsed()
     );
