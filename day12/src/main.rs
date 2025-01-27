@@ -24,19 +24,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap()
         .checked_add(1)
         .unwrap();
-    let t0 = Instant::now();
 
+    let t0 = Instant::now();
     let mut explored: Vec<bool> = vec![false; map.len()];
 
     let solution: u64 = (0..map.len())
         .map(|index| explore(&map, row_len, index, &mut explored))
         .sum();
 
-    println!(
-        "Solution Day 1: {} / Duration: {:.6?}",
-        solution,
-        t0.elapsed()
-    );
+    println!("Solution: {} / Duration: {:.6?}", solution, t0.elapsed());
     Ok(())
 }
 
@@ -46,7 +42,6 @@ fn explore(map: &Vec<u8>, row_len: usize, index: usize, explored: &mut Vec<bool>
         return 0;
     }
     let mut queue: Vec<usize> = vec![index];
-
     let mut area: u64 = 0;
     let mut perimeter: u64 = 0;
 
