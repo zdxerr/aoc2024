@@ -29,7 +29,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let expr = Regex::new(r"p=(\d+),(\d+)\s*v=(-?\d+),(-?\d+)").unwrap();
 
     let mut quadrants: (u64, u64, u64, u64) = (0, 0, 0, 0);
-    // let mut quadrants_a: [u64; 4] = [0; 4];
     for (_, [x, y, vx, vy]) in expr.captures_iter(input.as_str()).map(|c| c.extract()) {
         let (x, y, vx, vy) = (
             x.parse::<i64>()?,
@@ -56,7 +55,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         println!("x={x}, y={y}, vx={vx}, vy={vy}, xf={xf}, yf={yf}, quadrants={quadrants:?}");
     }
-    // println!("{}", &input);
     let solution = quadrants.0 * quadrants.1 * quadrants.2 * quadrants.3;
     println!("Solution: {} / Duration: {:.6?}", solution, t0.elapsed());
     Ok(())
