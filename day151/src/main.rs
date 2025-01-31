@@ -30,15 +30,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .unwrap();
 
-    // for (index, value) in input.iter().enumerate() {
-    //     match *value {
-    //         ROBOT if pos == usize::MAX => pos = index,
-    //         NL if xlen == usize::MAX => xlen = index,
-    //         UP | RIGHT | DOWN | LEFT => {
-    //             break;
-    //         }
-    //     }
-    // }
     let map = &input[0..sequence_index - 2];
     let sequence = &input[sequence_index..];
     dbg!(xlen, pos);
@@ -60,4 +51,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn move(map: &mut Vec<u8>, from:usize, to:usize) {}
+fn move_(map: &mut Vec<u8>, from: usize, to: usize) {}
