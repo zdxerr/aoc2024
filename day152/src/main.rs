@@ -1,3 +1,4 @@
+use core::panic;
 use std::error::Error;
 use std::io::stdin;
 use std::time::Instant;
@@ -5,6 +6,8 @@ use std::{env, fs, str};
 const FREE: u8 = b'.';
 const ROBOT: u8 = b'@';
 const BOX: u8 = b'O';
+const BOXL: u8 = b'[';
+const BOXR: u8 = b']';
 const WALL: u8 = b'#';
 const NL: u8 = b'\n';
 
@@ -13,14 +16,138 @@ const RIGHT: u8 = b'>';
 const DOWN: u8 = b'v';
 const LEFT: u8 = b'<';
 
+struct State {
+    map: Vec<u8>,
+    xlen: usize,
+    pos: usize,
+}
+
+impl State {
+    fn new(map: &[u8]) -> State {
+        let map: Vec<u8> = map
+            .trim_ascii()
+            .iter()
+            .flat_map(|v| match *v {
+                BOX => vec![BOXL, BOXR],
+                ROBOT => vec![ROBOT, FREE],
+                NL => vec![NL],
+                _ => vec![*v, *v],
+            })
+            .collect();
+        let xlen = map.iter().position(|&v| v == NL).unwrap() + 1;
+        let pos = map.iter().position(|&v| v == ROBOT).unwrap();
+        State { map, xlen, pos }
+    }
+
+    fn x(self: &State) -> usize {
+        self.pos % self.xlen
+    }
+
+    fn y(self: &State) -> usize {
+        self.pos / self.xlen
+    }
+
+    fn display(self: &State) -> Result<(), Box<dyn Error>> {
+        println!("{}", str::from_utf8(&self.map)?);
+        println!("x={}, y={}, xlen={}", self.x(), self.y(), self.xlen);
+        Ok(())
+    }
+
+    fn next(self: &State, pos: usize, direction: u8) -> Option<usize> {
+        let next_pos = match direction {
+            UP => pos.checked_sub(self.xlen)?,
+            RIGHT => pos.checked_add(1)?,
+            DOWN => pos.checked_add(self.xlen)?,
+            LEFT => pos.checked_sub(1)?,
+            _ => return None,
+        };
+        if next_pos < self.map.len() {
+            Some(next_pos)
+        } else {
+            // println!("NEXT {}", next_pos);
+            None
+        }
+    }
+
+    fn moveable(self: &mut State, pos: usize, direction: u8) -> bool {
+        if let Some(next_pos) = self.next(pos, direction) {
+            // println!("{} | {} | {}", pos, next_pos, self.map[next_pos] as char);
+            match self.map[next_pos] {
+                FREE => true,
+                BOXL => match direction {
+                    RIGHT | LEFT => self.moveable(next_pos, direction),
+                    UP | DOWN => {
+                        self.moveable(next_pos, direction) && self.moveable(next_pos + 1, direction)
+                    }
+                    _ => panic!(),
+                },
+                BOXR => match direction {
+                    RIGHT | LEFT => self.moveable(next_pos, direction),
+                    UP | DOWN => {
+                        self.moveable(next_pos, direction) && self.moveable(next_pos - 1, direction)
+                    }
+                    _ => panic!(),
+                },
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+
+    fn shift(self: &mut State, pos: usize, direction: u8) -> bool {
+        if let Some(next_pos) = self.next(pos, direction) {
+            match self.map[next_pos] {
+                FREE => {
+                    self.map[next_pos] = self.map[pos];
+                    self.map[pos] = FREE;
+                    if pos == self.pos {
+                        self.pos = next_pos;
+                    }
+                    true
+                }
+                BOXL => match direction {
+                    RIGHT | LEFT => {
+                        self.shift(next_pos, direction);
+                        self.shift(pos, direction);
+                        true
+                    }
+                    UP | DOWN => {
+                        self.shift(next_pos, direction);
+                        self.shift(next_pos + 1, direction);
+                        self.shift(pos, direction);
+                        true
+                    }
+                    _ => panic!(),
+                },
+                BOXR => match direction {
+                    RIGHT | LEFT => {
+                        self.shift(next_pos, direction);
+                        self.shift(pos, direction);
+                        true
+                    }
+                    UP | DOWN => {
+                        self.shift(next_pos, direction);
+                        self.shift(next_pos - 1, direction);
+                        self.shift(pos, direction);
+                        true
+                    }
+                    _ => panic!(),
+                },
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let t0 = Instant::now();
     let input_path = env::args().nth(1).expect("no input path");
-    let mut input = fs::read(&input_path)?;
+    let input = fs::read(&input_path)?;
     println!("Read {input_path}.");
 
-    let xlen = input.iter().position(|value| *value == NL).unwrap() + 1;
-    let mut pos = input.iter().position(|value| *value == ROBOT).unwrap();
     let sequence_index = input
         .iter()
         .position(|value| match *value {
@@ -28,73 +155,29 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ => false,
         })
         .unwrap();
-    let (map, sequence) = input.split_at_mut(sequence_index);
-    let ylen = map.len() / xlen;
+    let (map, sequence) = input.split_at(sequence_index);
+    let mut state = State::new(map);
 
-    let map: Vec<u8> = map
+    for &direction in sequence {
+        // state.display()?;
+
+        let moveable = state.moveable(state.pos, direction);
+        // println!("{} {}", direction as char, moveable);
+        // let mut input: String = String::new();
+        // stdin().read_line(&mut input).unwrap();
+
+        if moveable {
+            state.shift(state.pos, direction);
+        }
+    }
+    let solution = state
+        .map
         .iter()
-        .flat_map(|v| match *v {
-            BOX => [b'[', b']'],
-            ROBOT => [ROBOT, FREE],
-            NL => [b' ', NL],
-            _ => [*v, *v],
-        })
-        .collect();
-    println!("{}", str::from_utf8(map.trim_ascii())?);
-    // for &mut direction in sequence {
-    //     // println!("{}", str::from_utf8(map.trim_ascii())?);
-    //     // println!("{}", direction as char);
-    //     // let mut input: String = String::new();
-    //     // stdin().read_line(&mut input).unwrap();
-    //     if let Some(next_pos) = next(direction, pos, xlen, ylen) {
-    //         let mut end_pos = next_pos;
-
-    //         while map[end_pos] == BOX {
-    //             if let Some(end_pos2) = next(direction, end_pos, xlen, ylen) {
-    //                 end_pos = end_pos2;
-    //             } else {
-    //                 break;
-    //             }
-    //         }
-
-    //         if end_pos == next_pos {
-    //             if map[next_pos] == FREE {
-    //                 map[next_pos] = ROBOT;
-    //                 map[pos] = FREE;
-    //                 pos = next_pos;
-    //             }
-    //             continue;
-    //         }
-
-    //         if map[end_pos] == FREE {
-    //             map[next_pos] = ROBOT;
-    //             map[pos] = FREE;
-    //             pos = next_pos;
-    //             map[end_pos] = BOX;
-    //         }
-    //     }
-    // }
-    // let solution = map
-    //     .iter()
-    //     .enumerate()
-    //     .filter_map(|(index, value)| if *value == BOX { Some(index) } else { None })
-    //     .fold(0, |acc, index| acc + (index / xlen) * 100 + (index % xlen));
-    let solution = 0;
+        .enumerate()
+        .filter_map(|(index, value)| if *value == BOXL { Some(index) } else { None })
+        .fold(0, |acc, index| {
+            acc + (index / state.xlen) * 100 + (index % state.xlen)
+        });
     println!("Solution: {} / Duration: {:.6?}", solution, t0.elapsed());
     Ok(())
-}
-
-fn next(direction: u8, pos: usize, xlen: usize, ylen: usize) -> Option<usize> {
-    let next_pos = match direction {
-        UP => pos.checked_sub(xlen)?,
-        RIGHT => pos.checked_add(1)?,
-        DOWN => pos.checked_add(xlen)?,
-        LEFT => pos.checked_sub(1)?,
-        _ => return None,
-    };
-    if next_pos < xlen * ylen {
-        Some(next_pos)
-    } else {
-        None
-    }
 }
