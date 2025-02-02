@@ -79,14 +79,14 @@ impl State {
                     UP | DOWN => {
                         self.moveable(next_pos, direction) && self.moveable(next_pos + 1, direction)
                     }
-                    _ => panic!(),
+                    _ => panic!("unexpected direction: {}", direction as char),
                 },
                 BOXR => match direction {
                     RIGHT | LEFT => self.moveable(next_pos, direction),
                     UP | DOWN => {
                         self.moveable(next_pos, direction) && self.moveable(next_pos - 1, direction)
                     }
-                    _ => panic!(),
+                    _ => panic!("unexpected direction: {}", direction as char),
                 },
                 _ => false,
             }
@@ -94,8 +94,8 @@ impl State {
             false
         }
     }
-
-    fn shift(self: &mut State, pos: usize, direction: u8) -> bool {
+    // it might be possible to re-use the code from moveable here or vice versa
+    fn shift(self: &mut State, pos: usize, direction: u8) {
         if let Some(next_pos) = self.next(pos, direction) {
             match self.map[next_pos] {
                 FREE => {
@@ -104,40 +104,36 @@ impl State {
                     if pos == self.pos {
                         self.pos = next_pos;
                     }
-                    true
                 }
                 BOXL => match direction {
                     RIGHT | LEFT => {
                         self.shift(next_pos, direction);
                         self.shift(pos, direction);
-                        true
                     }
                     UP | DOWN => {
                         self.shift(next_pos, direction);
                         self.shift(next_pos + 1, direction);
                         self.shift(pos, direction);
-                        true
                     }
-                    _ => panic!(),
+                    _ => panic!("unexpected direction: {}", direction as char),
                 },
                 BOXR => match direction {
                     RIGHT | LEFT => {
                         self.shift(next_pos, direction);
                         self.shift(pos, direction);
-                        true
                     }
                     UP | DOWN => {
                         self.shift(next_pos, direction);
                         self.shift(next_pos - 1, direction);
                         self.shift(pos, direction);
-                        true
                     }
-                    _ => panic!(),
+                    _ => panic!("unexpected direction: {}", direction as char),
                 },
-                _ => false,
+                _ => panic!(
+                    "unexpected element at {}: {}",
+                    next_pos, self.map[next_pos] as char
+                ),
             }
-        } else {
-            false
         }
     }
 }
@@ -154,7 +150,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             UP | RIGHT | DOWN | LEFT => true,
             _ => false,
         })
-        .unwrap();
+        .expect("no directions found");
     let (map, sequence) = input.split_at(sequence_index);
     let mut state = State::new(map);
 
