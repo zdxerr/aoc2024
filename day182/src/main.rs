@@ -31,17 +31,37 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
         );
 
-    for n in N.. {
-        if let None = solve(&map, n) {
-            println!(
-                "Solution: {} / Duration: {:.6?}",
-                input.lines().nth(n).ok_or("input line not found")?,
-                t0.elapsed()
-            );
-            break;
+    let mut lower = N;
+    let mut upper = input.lines().count();
+
+    if let Some(n) = loop {
+        let pivot = lower + (upper - lower).div_ceil(2);
+        // print!("{i} {lower} {upper} {pivot} ");
+
+        if let Some(_) = solve(&map, pivot) {
+            if lower == pivot {
+                break None;
+            }
+            lower = pivot;
+
+            // println!("PASSED");
+        } else {
+            if upper == pivot {
+                break Some(pivot);
+            }
+            upper = pivot;
+            // println!("FAILED");
         }
+    } {
+        println!(
+            "Solution: {} {} / Duration: {:.6?}",
+            n,
+            input.lines().nth(n).ok_or("input line not found")?,
+            t0.elapsed()
+        );
+    } else {
+        println!("No solution found / Duration: {:.6?}", t0.elapsed());
     }
-    println!("No solution found / Duration: {:.6?}", t0.elapsed());
     Ok(())
 }
 
