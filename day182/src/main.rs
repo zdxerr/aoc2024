@@ -3,13 +3,11 @@ use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::Instant;
-use std::{env, fs, str};
+use std::{env, fs};
 
 const X: usize = 71;
 const Y: usize = 71;
 const N: usize = 1024;
-
-const BLOCK: u8 = b'#';
 
 fn main() -> Result<(), Box<dyn Error>> {
     let t0 = Instant::now();
@@ -20,34 +18,55 @@ fn main() -> Result<(), Box<dyn Error>> {
     let map = input
         .trim()
         .lines()
-        .take(N)
-        .map(|line| line.splitn(2, ',').map(str::parse::<usize>))
-        .fold([[b'.'; X]; Y], |mut map, mut parsed_line| {
-            let (x, y) = (
-                parsed_line.next().unwrap().unwrap(),
-                parsed_line.next().unwrap().unwrap(),
+        .map(|line| {
+            let (x, y) = line.split_once(',').unwrap();
+            (x.parse().unwrap(), y.parse().unwrap())
+        })
+        .enumerate()
+        .fold(
+            [[usize::MAX; X]; Y],
+            |mut map: [[usize; X]; Y], (index, (x, y)): (usize, (usize, usize))| {
+                map[y][x] = index;
+                map
+            },
+        );
+
+    for n in N.. {
+        if let None = solve(&map, n) {
+            println!(
+                "Solution: {} / Duration: {:.6?}",
+                input.lines().nth(n).ok_or("input line not found")?,
+                t0.elapsed()
             );
-            map[y][x] = BLOCK;
-            map
-        });
+            break;
+        }
+    }
+    println!("No solution found / Duration: {:.6?}", t0.elapsed());
+    Ok(())
+}
 
-    // println!("{}", str::from_utf8(&map.join(&b'\n'))?);
-
+fn solve(map: &[[usize; X]; Y], n: usize) -> Option<usize> {
     let mut queue: BinaryHeap<Reverse<(usize, usize, usize)>> = BinaryHeap::new();
     let mut visited: HashMap<(usize, usize), usize> = HashMap::new();
 
     queue.push(Reverse((0, 0, 0)));
     while let Some(Reverse((d, x, y))) = queue.pop() {
         if x == X - 1 && y == Y - 1 {
-            println!("Solution: {} / Duration: {:.6?}", d, t0.elapsed());
-            return Ok(());
+            return Some(d);
         }
-        if map.get(y).unwrap_or(&[BLOCK; X]).get(x).unwrap_or(&BLOCK) == &BLOCK {
+        if !(0..X).contains(&x) || !(0..Y).contains(&y) {
             continue;
         }
-        if visited.get(&(x, y)).unwrap_or(&usize::MAX) <= &d {
+        if let Some(previos_d) = visited.get(&(x, y)) {
+            if *previos_d <= d {
+                continue;
+            }
+        }
+        // is this position blocked now?
+        if map[y][x] <= n {
             continue;
         }
+
         visited.insert((x, y), d);
 
         queue.extend(
@@ -60,7 +79,5 @@ fn main() -> Result<(), Box<dyn Error>> {
             .iter(),
         );
     }
-
-    println!("No solution found / Duration: {:.6?}", t0.elapsed());
-    Ok(())
+    None
 }
