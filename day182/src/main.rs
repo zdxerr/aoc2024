@@ -36,21 +36,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Some(n) = loop {
         let pivot = lower + (upper - lower).div_ceil(2);
-        // print!("{i} {lower} {upper} {pivot} ");
 
         if let Some(_) = solve(&map, pivot) {
             if lower == pivot {
                 break None;
             }
             lower = pivot;
-
-            // println!("PASSED");
         } else {
             if upper == pivot {
                 break Some(pivot);
             }
             upper = pivot;
-            // println!("FAILED");
         }
     } {
         println!(
