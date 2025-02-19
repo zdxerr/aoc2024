@@ -1,11 +1,15 @@
 use std::cell::RefCell;
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
-use std::collections::HashMap;
 use std::error::Error;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 use std::time::Instant;
-use std::{env, fs};
+use std::{env, fs, str};
+
+#[derive(Eq, PartialEq)]
+enum State {
+    ParseTree,
+    ParsePattern,
+    InvalidPattern,
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let t0 = Instant::now();
@@ -13,85 +17,117 @@ fn main() -> Result<(), Box<dyn Error>> {
     let input = fs::read(&input_path)?;
     println!("Read {input_path}.");
 
-    let trie = Rc::new(RefCell::new(Trie::new()));
-    let mut current_node = Rc::clone(&trie);
+    let root = Rc::new(RefCell::new(Trie::new()));
+    let mut current_node = Rc::clone(&root);
 
-    let mut state = 0;
+    let mut state = State::ParseTree;
+
+    let mut counter = 0;
 
     for v in input {
-        if state == 0 {
-            match v {
-                b',' => {
-                    current_node.borrow_mut().towel = true;
-                    current_node = Rc::clone(&trie);
-                    continue;
-                }
-                b'\n' => {
-                    state = 1;
-                    continue;
-                }
-
-                b' ' => continue,
-                _ => {}
+        let index = match (v, &state) {
+            (b',', State::ParseTree) => {
+                print!(", ",);
+                current_node.borrow_mut().towel = true;
+                current_node = Rc::clone(&root);
+                continue;
             }
-
-            let index = match v {
-                b'w' => 0,
-                b'u' => 1,
-                b'b' => 2,
-                b'r' => 3,
-                b'g' => 4,
-                _ => panic!("unknown color {v:?}"),
+            (b'\n', State::ParseTree) => {
+                println!("#");
+                current_node.borrow_mut().towel = true;
+                current_node = Rc::clone(&root);
+                state = State::ParsePattern;
+                continue;
+            }
+            (b'\n', State::InvalidPattern) => {
+                current_node = Rc::clone(&root);
+                state = State::ParsePattern;
+                continue;
+            }
+            (b'\n', State::ParsePattern) => {
+                println!("_ {} {}", counter, current_node.borrow().towel);
+                if current_node.borrow().towel {
+                    counter += 1;
+                }
+                current_node = Rc::clone(&root);
+                // break;
+                continue;
+            }
+            (b' ', _) | (_, State::InvalidPattern) => continue,
+            (b'w', _) => 0,
+            (b'u', _) => 1,
+            (b'b', _) => 2,
+            (b'r', _) => 3,
+            (b'g', _) => 4,
+            _ => panic!("unexpected value: {}", str::from_utf8(&[v]).unwrap()),
+        };
+        print!("{} ", str::from_utf8(&[v]).unwrap());
+        if state == State::ParseTree {
+            current_node = {
+                let mut b = current_node.borrow_mut();
+                let next_node;
+                if let Some(next) = b.next[index].take() {
+                    print!("REUSE ");
+                    next_node = Rc::clone(&next);
+                    b.next[index] = Some(next);
+                } else {
+                    print!("NEW ");
+                    next_node = Rc::new(RefCell::new(Trie::new()));
+                    b.next[index] = Some(Rc::clone(&next_node));
+                }
+                next_node
             };
-            let next = Rc::new(RefCell::new(Trie::new()));
-            current_node.borrow_mut().next[index].replace(Rc::clone(&next));
-            current_node = Rc::clone(&next);
         } else {
-            dbg!(v.to_string());
-            match v {
-                b'\n' if state == 2 => break,
-                b'\n' if state == 1 => {
-                    state = 2;
-                    continue;
+            print!("{} {} ", str::from_utf8(&[v]).unwrap(), index);
+
+            current_node = {
+                let b = current_node.borrow();
+
+                if let Some(next) = &b.next[index] {
+                    println!("MATCH {} {}", b.towel, next.borrow().towel);
+                    Rc::clone(next)
+                } else {
+                    println!("NO MATCH {}", b.towel);
+                    if b.towel {
+                        let b = root.borrow();
+                        if let Some(next) = &b.next[index] {
+                            println!("MATCH {} {}", b.towel, next.borrow().towel);
+                            Rc::clone(next)
+                        } else {
+                            println!("INVALID PATTERN");
+                            state = State::InvalidPattern;
+                            Rc::clone(&root)
+                        }
+                    } else {
+                        println!("INVALID PATTERN");
+                        state = State::InvalidPattern;
+                        Rc::clone(&root)
+                    }
                 }
-                b' ' => continue,
-                _ => {}
-            }
-
-            let index = match v {
-                b'w' => 0,
-                b'u' => 1,
-                b'b' => 2,
-                b'r' => 3,
-                b'g' => 4,
-                _ => panic!("unknown color {v:?}"),
             };
-            print!("{v} {index}");
-
-            if let Some(c) = &current_node.borrow().next[index] {
-                println!("X {c:?}");
-            } else {
-                println!("FAILED, skip");
-                break;
-            }
         }
     }
-    println!("{trie:?}");
-    println!("Solution: {} / Duration: {:.6?}", 0, t0.elapsed());
+    // r, wr, b, g, bwu, rb, gb, br
+    // brwrr
+
+    // println!("{root:#?}");
+    println!("Solution: {} / Duration: {:.6?}", counter, t0.elapsed());
     Ok(())
 }
 
 #[derive(Debug)]
 struct Trie {
     towel: bool,
-    next: [Option<Rc<RefCell<Trie>>>; 6],
+    next: [Option<Rc<RefCell<Trie>>>; 5],
 }
 
 impl Trie {
     fn new() -> Self {
         Trie {
             towel: false,
-            next: [const { None }; 6],
+            next: [const { None }; 5],
         }
     }
+
+    // fn get_next(&mut self, )
 }
