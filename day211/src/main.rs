@@ -1,4 +1,4 @@
-use core::str;
+use core::{panic, str};
 use std::error::Error;
 use std::time::Instant;
 use std::{env, fs};
@@ -19,73 +19,74 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
     let dpad = [[b' ', b'^', b'A'], [b'<', b'v', b'>']];
 
-    let numcoords: Vec<(usize, usize, u8)> = numpad
-        .iter()
-        .enumerate()
-        .map(|(y, row)| row.iter().enumerate().map(move |(x, num)| (x, y, *num)))
-        .flatten()
-        .collect();
-    let dcoords: Vec<(usize, usize, u8)> = dpad
-        .iter()
-        .enumerate()
-        .map(|(y, row)| row.iter().enumerate().map(move |(x, num)| (x, y, *num)))
-        .flatten()
-        .collect();
-
     let mut padpaths: HashMap<u8, HashMap<u8, Vec<Vec<u8>>>> = HashMap::new();
+    // let mut padpaths2: HashMap<(u8, u8), Vec<Vec<u8>>> = HashMap::new();
+    //
 
-    let start = (2_usize, 3_usize);
-    // let next = (start.0, start.1 - 1);
+    let stack: Vec<(u8, usize, usize)> = numpad
+        .iter()
+        .enumerate()
+        .map(|(y, row)| {
+            row.iter()
+                .enumerate()
+                .filter(|(_, num)| **num != b' ')
+                .map(move |(x, num)| (*num, x, y))
+        })
+        .flatten()
+        .collect();
 
-    let mut stack = vec![(numpad[start.1][start.0], 2_usize, 3_usize, vec![])];
-
-    while let Some((start, x, y, path)) = stack.pop() {
-        // dbg!(start, x, y, &path);c
-        if x > 0 {
-            stack.push((
-                start,
-                x - 1,
-                y,
-                path.iter().copied().chain([b'<'].into_iter()).collect(),
-            ));
-            if start != numpad[y][x] {
-                stack.push((numpad[y][x], x - 1, y, vec![b'<']));
+    for (from, x0, y0) in &stack {
+        for (to, x1, y1) in &stack {
+            if from == to {
+                continue;
             }
+
+            let horizontal = vec![if x0 < x1 { b'>' } else { b'<' }; x1.abs_diff(*x0)];
+            let vertical = vec![if y0 < y1 { b'^' } else { b'v' }; y1.abs_diff(*y0)];
+
+            padpaths
+                .entry(*from)
+                .or_default()
+                .entry(*to)
+                .or_default()
+                .extend(
+                    [
+                        [horizontal.clone(), vertical.clone()].concat(), //.iter().flatten().copied().collect(),
+                        [vertical, horizontal].concat(),
+                        // [vertical, horizontal].iter().flatten().copied().collect(),
+                    ]
+                    .into_iter(),
+                );
         }
-        if y > 0 {
-            stack.push((
-                start,
-                x,
-                y - 1,
-                path.iter().copied().chain([b'^'].into_iter()).collect(),
-            ));
-            if start != numpad[y][x] {
-                stack.push((numpad[y][x], x, y - 1, vec![b'^']));
-            }
-        }
-        // dbg!(start, x, y, &path);
-        println!(
-            "{} {} {}",
-            start as char,
-            numpad[y][x] as char,
-            str::from_utf8(&path)?
-        );
-        padpaths
-            .entry(start)
-            .or_default()
-            .entry(numpad[y][x])
-            .or_default()
-            .push(path);
-        // break;
     }
 
-    // while pos != (0, 0) {}
+    // let mut padpaths3: HashMap<(u8, u8), Vec<Vec<u8>>> = HashMap::new();
+    // for ((a, b), paths) in &padpaths2 {
+    //     padpaths3
+    //         .entry((*b, *a))
+    //         .or_default()
+    //         .extend(paths.iter().map(|path| {
+    //             path.iter()
+    //                 .map(|c| match c {
+    //                     b'^' => b'v',
+    //                     b'<' => b'>',
+    //                     _ => panic!("AHH"),
+    //                 })
+    //                 .collect()
+    //         }));
+    // }
+    // padpaths2.extend(padpaths3.into_iter());
+    // // while pos != (0, 0) {}
 
-    // dbg!(numcoords, dcoords, &padpaths, &padpaths.len());
-
+    // // dbg!(numcoords, dcoords, &padpaths, &padpaths.len());
+    // for (a, b) in padpaths2.keys() {
+    //     println!("{}->{}", *a as char, *b as char);
+    // }
+    let mut c = 0;
     for (a, p) in padpaths {
         for (b, paths) in p {
-            println!("{} -> {}", a as char, b as char);
+            c += 1;
+            println!("{c} {} -> {}", a as char, b as char);
 
             for path in paths {
                 println!("    {}", str::from_utf8(&path)?);
