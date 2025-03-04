@@ -1,7 +1,6 @@
-use core::panicking::panic_const::panic_const_shr_overflow;
 use core::str;
 use std::error::Error;
-use std::io::BufRead;
+use std::f32::consts;
 use std::iter::repeat_n;
 use std::time::Instant;
 use std::{env, fs};
@@ -26,82 +25,66 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     compute_padpaths(&mut padpaths, &[[b' ', b'^', b'A'], [b'<', b'v', b'>']]);
 
-    // // dbg!(numcoords, dcoords, &padpaths, &padpaths.len());
-    // for (a, b) in padpaths2.keys() {
-    //     println!("{}->{}", *a as char, *b as char);
-    // }
-    // let mut c = 0;
-    // for (a, p) in padpaths {
-    //     for (b, paths) in p {
-    //         c += 1;
-    //         println!("{c} {} -> {}", a as char, b as char);
+    let mut solution = 0_usize;
+    for code in input.trim_ascii().split(|c| *c == b'\n') {
+        let number: usize = str::from_utf8(code.split_last_chunk::<1>().unwrap().0)?.parse()?;
+        let length = solve(code, &padpaths, 2);
+        let complexity = number * length;
+        println!("{} * {} = {}", length, number, complexity);
 
-    //         for path in paths {
-    //             println!("    {}", str::from_utf8(&path)?);
-    //         }
-    //     }
-    // }
-    //i
-    //
-    for code in input.split(|c| *c == b'\n') {
-        solve(code, &padpaths);
-    }
-    let mut pos = b'A';
-    // let mut pos2;
-    let mut seq1: Vec<Vec<u8>> = vec![];
-    for c in input {
-        if c == b'\n' {
-            break;
-        }
+        solution += complexity;
 
-        if c == pos {
-            seq1.push(b'A');
-        }
-
-        let paths = padpaths.get(&pos).unwrap().get(&c).unwrap();
-
-        print!("{}", c as char);
-
-        for path in paths {}
-        pos = c;
-    }
-    println!();
-    for c in seq1 {
-        print!("{}", c as char);
+        // break;
     }
 
-    println!("Solution: {} / Duration: {:.6?}", 0, t0.elapsed());
+    println!("Solution: {} / Duration: {:.6?}", solution, t0.elapsed());
     Ok(())
 }
 
-fn solve(code: &[u8], padpaths: &HashMap<u8, HashMap<u8, Vec<Vec<u8>>>>) {
+fn solve(code: &[u8], padpaths: &HashMap<u8, HashMap<u8, Vec<Vec<u8>>>>, depth: usize) -> usize {
+    // println!("{} depth={}", str::from_utf8(code).unwrap(), depth);
     let mut pos = b'A';
+    let mut sum = 0_usize;
 
-    let mut possible_paths: Vec<Vec<u8>> = vec![vec![]];
+    if depth == 0 {
+        for next in code {
+            // if *next == pos {
+            //     sum += 1;
+            //     continue;
+            // }
 
-    for c in code {
-        let paths0 = padpaths.get(&pos).unwrap().get(&c).unwrap();
+            sum += padpaths
+                .get(&pos)
+                .unwrap()
+                .get(next)
+                .unwrap()
+                .get(0)
+                .unwrap()
+                .len();
 
-        let mut new_paths: Vec<Vec<u8>> = possible_paths
-            .into_iter()
-            .map(move |p| {
-                paths0
-                    .into_iter()
-                    .map(move |pn| p.into_iter().chain(*pn).collect::<Vec<u8>>())
-            })
-            .flatten()
-            .collect();
+            pos = *next;
+        }
+    } else {
+        for next in code {
+            // if *next == pos {
+            //     sum += 1;
+            //     continue;
+            // }
+            sum += padpaths
+                .get(&pos)
+                .unwrap()
+                .get(&next)
+                .unwrap()
+                .iter()
+                .map(|path| solve(path, padpaths, depth - 1))
+                .min()
+                .unwrap();
 
-        // possible_paths.iter().c
-
-        // for pathx in possible_paths {
-        //     for path_ in paths0 {
-        //         panic_const_shr_overflow()
-        //     }
-        // }
-
-        pos = *c;
+            pos = *next;
+        }
     }
+
+    sum
 }
 
 fn compute_padpaths(padpaths: &mut HashMap<u8, HashMap<u8, Vec<Vec<u8>>>>, pad: &[[u8; 3]]) {
@@ -118,23 +101,29 @@ fn compute_padpaths(padpaths: &mut HashMap<u8, HashMap<u8, Vec<Vec<u8>>>>, pad: 
 
     for (from, x0, y0) in &stack {
         for (to, x1, y1) in &stack {
+            let paths = padpaths.entry(*from).or_default().entry(*to).or_default();
             if from == to {
+                paths.push(vec![b'A']);
                 continue;
             }
+            let path: Vec<u8> = repeat_n(if x0 < x1 { b'>' } else { b'<' }, x1.abs_diff(*x0))
+                .chain(repeat_n(
+                    if y0 < y1 { b'^' } else { b'v' },
+                    y1.abs_diff(*y0),
+                ))
+                .collect();
+            if pad[*y0][*x1] != b' ' {
+                paths.push(path.iter().copied().chain([b'A'].into_iter()).collect());
+            }
 
-            let paths = padpaths.entry(*from).or_default().entry(*to).or_default();
-
-            paths.push(
-                repeat_n(if x0 < x1 { b'>' } else { b'<' }, x1.abs_diff(*x0))
-                    .chain(repeat_n(
-                        if y0 < y1 { b'^' } else { b'v' },
-                        y1.abs_diff(*y0),
-                    ))
-                    .collect(),
-            );
-
-            if x0 != x1 && y0 != y1 {
-                paths.push(paths[0].iter().copied().rev().collect());
+            if pad[*y1][*x0] != b' ' && x0 != x1 && y0 != y1 {
+                paths.push(
+                    path.iter()
+                        .copied()
+                        .rev()
+                        .chain([b'A'].into_iter())
+                        .collect(),
+                );
             }
         }
     }
