@@ -45,14 +45,8 @@ fn solve(code: &[u8], padpaths: &HashMap<u8, HashMap<u8, Vec<Vec<u8>>>>, depth: 
     // println!("{} depth={}", str::from_utf8(code).unwrap(), depth);
     let mut pos = b'A';
     let mut sum = 0_usize;
-
-    if depth == 0 {
-        for next in code {
-            // if *next == pos {
-            //     sum += 1;
-            //     continue;
-            // }
-
+    for next in code {
+        if depth == 0 {
             sum += padpaths
                 .get(&pos)
                 .unwrap()
@@ -61,15 +55,7 @@ fn solve(code: &[u8], padpaths: &HashMap<u8, HashMap<u8, Vec<Vec<u8>>>>, depth: 
                 .get(0)
                 .unwrap()
                 .len();
-
-            pos = *next;
-        }
-    } else {
-        for next in code {
-            // if *next == pos {
-            //     sum += 1;
-            //     continue;
-            // }
+        } else {
             sum += padpaths
                 .get(&pos)
                 .unwrap()
@@ -79,11 +65,9 @@ fn solve(code: &[u8], padpaths: &HashMap<u8, HashMap<u8, Vec<Vec<u8>>>>, depth: 
                 .map(|path| solve(path, padpaths, depth - 1))
                 .min()
                 .unwrap();
-
-            pos = *next;
         }
+        pos = *next;
     }
-
     sum
 }
 
