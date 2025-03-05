@@ -1,4 +1,5 @@
 use core::str;
+use std::collections::hash_map::Entry;
 use std::error::Error;
 use std::iter::repeat_n;
 use std::time::Instant;
@@ -24,19 +25,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     compute_padpaths(&mut padpaths, &[[b' ', b'^', b'A'], [b'<', b'v', b'>']]);
 
-    let mut cache: HashMap<(u8, u8, usize), usize> = HashMap::new();
-
-    let mut solution = 0_usize;
+    let mut solution = (0_usize, 0_usize);
     for code in input.trim_ascii().split(|c| *c == b'\n') {
         let number: usize = str::from_utf8(code.split_last_chunk::<1>().unwrap().0)?.parse()?;
-        let length = solve(code, &padpaths, 25, &mut cache);
-        let complexity = number * length;
-        // println!("{} * {} = {}", length, number, complexity);
 
-        solution += complexity;
+        solution.0 += number * solve(code, &padpaths, 2, &mut HashMap::new());
+        solution.1 += number * solve(code, &padpaths, 25, &mut HashMap::new());
     }
 
-    println!("Solution: {} / Duration: {:.6?}", solution, t0.elapsed());
+    println!("Solution: {:#?} / Duration: {:.6?}", solution, t0.elapsed());
     Ok(())
 }
 
@@ -50,11 +47,12 @@ fn solve(
     let mut sum = 0_usize;
     for next in code {
         if depth == 0 {
-            sum += padpaths.get(&(pos, *next)).unwrap().get(0).unwrap().len();
+            sum += padpaths.get(&(pos, *next)).unwrap().first().unwrap().len();
         } else {
             let key = (pos, *next, depth - 1);
-            sum += if cache.contains_key(&key) {
-                *cache.get(&key).unwrap()
+
+            sum += if let Entry::Occupied(v) = cache.entry(key) {
+                *v.get()
             } else {
                 let len = padpaths
                     .get(&(pos, *next))
