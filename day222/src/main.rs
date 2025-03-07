@@ -9,6 +9,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let input = fs::read_to_string(&input_path)?;
     println!("Read {input_path}.");
 
+    let mut sequences: HashMap<i64, i64> = HashMap::new();
+    let mut seen: HashSet<i64> = HashSet::new();
+
     let secrets: Vec<Vec<i64>> = input
         .lines()
         .map(|line| line.parse::<i64>().expect("unable to parse integer"))
@@ -23,29 +26,26 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .collect()
         })
         .collect();
-    let deltas: Vec<Vec<(i64, i64)>> = secrets
-        .iter()
-        .map(|sequence| {
-            sequence
-                .windows(2)
-                .map(|numbers| (numbers[1] % 10 - numbers[0] % 10, numbers[1] % 10))
-                .collect()
-        })
-        .collect();
 
-    let mut sequences: HashMap<(i64, i64, i64, i64), i64> = HashMap::new();
-    let mut seen: HashSet<(i64, i64, i64, i64)> = HashSet::new();
-    for sequence in &deltas {
-        for window in sequence.windows(4) {
-            let key = (window[0].0, window[1].0, window[2].0, window[3].0);
+    for sequence in &secrets {
+        let mut key = 0;
+
+        let mut last = 0;
+
+        for sn in sequence {
+            let delta = sn % 10 - last % 10;
+            key = ((key << 8) | (delta + 9)) & 0xFFFF_FFFF;
+
             if seen.contains(&key) {
+                last = *sn;
                 continue;
             }
             seen.insert(key);
             sequences
                 .entry(key)
-                .and_modify(|v| *v += window[3].1)
-                .or_insert(window[3].1);
+                .and_modify(|v| *v += sn % 10)
+                .or_insert(sn % 10);
+            last = *sn;
         }
         seen.clear();
     }
