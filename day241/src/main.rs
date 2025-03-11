@@ -61,10 +61,24 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         })
         .collect();
+    let mut zs: Vec<&String> = map.keys().filter(|k| k.starts_with('z')).collect();
+    zs.sort();
+    zs.reverse();
+
+    let solution = zs
+        .into_iter()
+        .map(|z| {
+            println!("{}: {}", z, u64::from(solve(z, &map)));
+            solve(z, &map)
+        })
+        .fold(0_u64, |acc, v| (acc << 1) | u64::from(v));
+    // for x in map.keys().filter(|k| k.starts_with('z')) {
+    //     println!("{x}: {}", solve(x, &map));
+    // }
 
     // dbg!(&map);
 
-    println!("Solution: {} / Duration: {:.6?}", 0, t0.elapsed());
+    println!("Solution: {} / Duration: {:.6?}", solution, t0.elapsed());
 
     Ok(())
 }
@@ -80,4 +94,19 @@ enum Operator {
     AND,
     OR,
     XOR,
+}
+
+fn solve(port: &String, map: &HashMap<String, Expression>) -> bool {
+    match map.get(port).unwrap() {
+        Expression::Gate { a, op, b } => {
+            let a = solve(a, map);
+            let b = solve(b, map);
+            match op {
+                Operator::AND => a & b,
+                Operator::OR => a | b,
+                Operator::XOR => a ^ b,
+            }
+        }
+        Expression::Value(value) => *value,
+    }
 }
