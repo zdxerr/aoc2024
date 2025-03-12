@@ -1,4 +1,4 @@
-use regex::Regex;
+use regex::{Match, Regex};
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::Instant;
@@ -43,17 +43,39 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         })
         .collect();
-    let mut zs: Vec<&String> = map.keys().filter(|k| k.starts_with('z')).collect();
-    zs.sort();
-    zs.reverse();
 
-    let solution = zs
-        .into_iter()
-        .map(|z| {
-            println!("{}: {}", z, u64::from(solve(z, &map)));
-            solve(z, &map)
-        })
-        .fold(0_u64, |acc, v| (acc << 1) | u64::from(v));
+    fn get_ports(prefix: char, map: &HashMap<String, Expression>) -> Vec<&String> {
+        let mut s: Vec<&String> = map.keys().filter(|k| k.starts_with(prefix)).collect();
+        s.sort();
+        s.reverse();
+        s
+    }
+
+    let xs = get_ports('x', &map);
+    let ys = get_ports('y', &map);
+    let zs = get_ports('z', &map);
+
+    for x in &xs {
+        println!("{x}: {:?}", map[*x]);
+    }
+    for x in &ys {
+        println!("{x}: {:?}", map[*x]);
+    }
+    for x in &zs {
+        println!("{x}: {:?}", map[*x]);
+    }
+
+    let (x, y) = (
+        to_u64(&xs.into_iter().map(|k| map.get(k).unwrap().into()).collect()),
+        to_u64(&ys.into_iter().map(|k| map.get(k).unwrap().into()).collect()),
+    );
+    let z = x + y;
+
+    println!("X: {} {:#020b}", x, x);
+    println!("Y: {} {:#020b}", y, y);
+    println!("Z: {} {:#020b}", z, z);
+
+    let solution = 0;
 
     println!("Solution: {} / Duration: {:.6?}", solution, t0.elapsed());
 
@@ -64,6 +86,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 enum Expression {
     Value(bool),
     Gate { a: String, op: Operator, b: String },
+}
+
+impl Into<bool> for &Expression {
+    fn into(self) -> bool {
+        match self {
+            Expression::Value(value) => *value,
+            _ => panic!(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -87,3 +118,9 @@ fn solve(port: &String, map: &HashMap<String, Expression>) -> bool {
         Expression::Value(value) => *value,
     }
 }
+
+fn to_u64(values: &Vec<bool>) -> u64 {
+    values.iter().fold(0, |acc, &v| (acc << 1) | u64::from(v))
+}
+
+// fn from_vec()
