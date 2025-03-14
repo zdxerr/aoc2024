@@ -47,170 +47,186 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut outputs: Vec<&str> = vec![];
 
-    for (z, expr) in map.iter().filter(|(k, _)| k.starts_with('z')) {
-        let number: u32 = z[1..].parse().unwrap();
-        // println!("{number} {z}: {expr:?}");
-        if let Expression::Gate { a, op, b } = expr {
-            if *op != Operator::XOR {
-                outputs.push(z);
-                continue;
-            }
-            if number == 0 {
-                if !([a, b] == ["x00", "y00"] || [b, a] == ["x00", "y00"]) {
-                    outputs.push(z);
+    while let Some((out, Expression::Gate { a, op, b })) = map.iter().next() {
+        match *op {
+            Operator::XOR => {
+                if out == "z00" && ([a, b] == ["x00", "y00"] || [b, a] == ["x00", "y00"]) {
+                    continue;
                 }
-                continue;
-            }
+                if [a[0], b[0]] == [x, y] || [a[0], b[0]] == [y, x] {
 
-            let mut x_xor_y = false;
-            let inputs = [&format!("x{number:02}"), &format!("y{number:02}")];
-            match (a, map.get(a).unwrap(), b, map.get(b).unwrap()) {
-                (
-                    out1,
-                    Expression::Gate {
-                        a: a1,
-                        op: Operator::XOR,
-                        b: b1,
-                    },
-                    out2,
-                    Expression::Gate {
-                        a: a2,
-                        op: Operator::OR,
-                        b: b2,
-                    },
-                )
-                | (
-                    out2,
-                    Expression::Gate {
-                        a: a2,
-                        op: Operator::OR,
-                        b: b2,
-                    },
-                    out1,
-                    Expression::Gate {
-                        a: a1,
-                        op: Operator::XOR,
-                        b: b1,
-                    },
-                ) if [a1, b1] == inputs || [b1, a1] == inputs => {
-                    println!("{z} / {out2} = {a2}  {b2}");
-
-                    // if number == 1 {
-                    //     if !(*op2 == Operator::AND
-                    //         && ([a2, b2] == ["x00", "y00"] || [b2, a2] == ["x00", "y00"]))
-                    //     {
-                    //         outputs.push(z);
-                    //     }
-                    //     continue;
-                    // }
+                    // map.get(out)
                 }
-                (
-                    out1,
-                    Expression::Gate {
-                        a: a1,
-                        op: Operator::XOR,
-                        b: b1,
-                    },
-                    out2,
-                    Expression::Gate {
-                        a: a2,
-                        op: Operator::OR,
-                        b: b2,
-                    },
-                )
-                | (
-                    out2,
-                    Expression::Gate {
-                        a: a2,
-                        op: Operator::OR,
-                        b: b2,
-                    },
-                    out1,
-                    Expression::Gate {
-                        a: a1,
-                        op: Operator::XOR,
-                        b: b1,
-                    },
-                ) => outputs.push(out1),
-                (
-                    out1,
-                    Expression::Gate {
-                        a: a1,
-                        op: _,
-                        b: b1,
-                    },
-                    out2,
-                    Expression::Gate {
-                        a: a2,
-                        op: Operator::OR,
-                        b: b2,
-                    },
-                )
-                | (
-                    out2,
-                    Expression::Gate {
-                        a: a2,
-                        op: Operator::OR,
-                        b: b2,
-                    },
-                    out1,
-                    Expression::Gate {
-                        a: a1,
-                        op: _,
-                        b: b1,
-                    },
-                ) => outputs.push(out1),
-                (
-                    out1,
-                    Expression::Gate {
-                        a: a1,
-                        op: Operator::XOR,
-                        b: b1,
-                    },
-                    out2,
-                    Expression::Gate {
-                        a: a2,
-                        op: _,
-                        b: b2,
-                    },
-                )
-                | (
-                    out2,
-                    Expression::Gate {
-                        a: a2,
-                        op: _,
-                        b: b2,
-                    },
-                    out1,
-                    Expression::Gate {
-                        a: a1,
-                        op: Operator::XOR,
-                        b: b1,
-                    },
-                ) => outputs.push(out2),
-                _ => panic!(),
             }
+            Operator::OR => {}
+            Operator::AND => {}
         }
-
-        // if let Expression::Gate { a, op, b } = expr {
-        //     let expra = map.get(a).unwrap();
-        //     println!("  - {a}: {expra:?}");
-        //     if let Expression::Gate { a, op, b } = expra {
-        //         let expra = map.get(a).unwrap();
-        //         println!("    - {a}: {expra:?}");
-        //         let exprb = map.get(b).unwrap();
-        //         println!("    - {b}: {exprb:?}");
-        //     y}
-        //     let exprb = map.get(b).unwrap();
-        //     println!("  - {b}: {exprb:?}");
-        //     if let Expression::Gate { a, op, b } = exprb {
-        //         let expra = map.get(a).unwrap();
-        //         println!("    - {a}: {expra:?}");
-        //         let exprb = map.get(b).unwrap();
-        //         println!("    - {b}: {exprb:?}");
-        //     }
-        // }
     }
+
+    // for (z, expr) in map.iter().filter(|(k, _)| k.starts_with('z')) {
+    //     let number: u32 = z[1..].parse().unwrap();
+    //     // println!("{number} {z}: {expr:?}");
+    //     if let Expression::Gate { a, op, b } = expr {
+    //         if *op != Operator::XOR {
+    //             outputs.push(z);
+    //             continue;
+    //         }
+    //         if number == 0 {
+    //             if !([a, b] == ["x00", "y00"] || [b, a] == ["x00", "y00"]) {
+    //                 outputs.push(z);
+    //             }
+    //             continue;
+    //         }
+
+    //         let mut x_xor_y = false;
+    //         let inputs = [&format!("x{number:02}"), &format!("y{number:02}")];
+    //         match (a, map.get(a).unwrap(), b, map.get(b).unwrap()) {
+    //             (
+    //                 out1,
+    //                 Expression::Gate {
+    //                     a: a1,
+    //                     op: Operator::XOR,
+    //                     b: b1,
+    //                 },
+    //                 out2,
+    //                 Expression::Gate {
+    //                     a: a2,
+    //                     op: Operator::OR,
+    //                     b: b2,
+    //                 },
+    //             )
+    //             | (
+    //                 out2,
+    //                 Expression::Gate {
+    //                     a: a2,
+    //                     op: Operator::OR,
+    //                     b: b2,
+    //                 },
+    //                 out1,
+    //                 Expression::Gate {
+    //                     a: a1,
+    //                     op: Operator::XOR,
+    //                     b: b1,
+    //                 },
+    //             ) if [a1, b1] == inputs || [b1, a1] == inputs => {
+    //                 println!("{z} / {out2} = {a2}  {b2}");
+
+    //                 // if number == 1 {
+    //                 //     if !(*op2 == Operator::AND
+    //                 //         && ([a2, b2] == ["x00", "y00"] || [b2, a2] == ["x00", "y00"]))
+    //                 //     {
+    //                 //         outputs.push(z);
+    //                 //     }
+    //                 //     continue;
+    //                 // }
+    //             }
+    //             (
+    //                 out1,
+    //                 Expression::Gate {
+    //                     a: a1,
+    //                     op: Operator::XOR,
+    //                     b: b1,
+    //                 },
+    //                 out2,
+    //                 Expression::Gate {
+    //                     a: a2,
+    //                     op: Operator::OR,
+    //                     b: b2,
+    //                 },
+    //             )
+    //             | (
+    //                 out2,
+    //                 Expression::Gate {
+    //                     a: a2,
+    //                     op: Operator::OR,
+    //                     b: b2,
+    //                 },
+    //                 out1,
+    //                 Expression::Gate {
+    //                     a: a1,
+    //                     op: Operator::XOR,
+    //                     b: b1,
+    //                 },
+    //             ) => outputs.push(out1),
+    //             (
+    //                 out1,
+    //                 Expression::Gate {
+    //                     a: a1,
+    //                     op: _,
+    //                     b: b1,
+    //                 },
+    //                 out2,
+    //                 Expression::Gate {
+    //                     a: a2,
+    //                     op: Operator::OR,
+    //                     b: b2,
+    //                 },
+    //             )
+    //             | (
+    //                 out2,
+    //                 Expression::Gate {
+    //                     a: a2,
+    //                     op: Operator::OR,
+    //                     b: b2,
+    //                 },
+    //                 out1,
+    //                 Expression::Gate {
+    //                     a: a1,
+    //                     op: _,
+    //                     b: b1,
+    //                 },
+    //             ) => outputs.push(out1),
+    //             (
+    //                 out1,
+    //                 Expression::Gate {
+    //                     a: a1,
+    //                     op: Operator::XOR,
+    //                     b: b1,
+    //                 },
+    //                 out2,
+    //                 Expression::Gate {
+    //                     a: a2,
+    //                     op: _,
+    //                     b: b2,
+    //                 },
+    //             )
+    //             | (
+    //                 out2,
+    //                 Expression::Gate {
+    //                     a: a2,
+    //                     op: _,
+    //                     b: b2,
+    //                 },
+    //                 out1,
+    //                 Expression::Gate {
+    //                     a: a1,
+    //                     op: Operator::XOR,
+    //                     b: b1,
+    //                 },
+    //             ) => outputs.push(out2),
+    //             _ => panic!(),
+    //         }
+    //     }
+
+    //     // if let Expression::Gate { a, op, b } = expr {
+    //     //     let expra = map.get(a).unwrap();
+    //     //     println!("  - {a}: {expra:?}");
+    //     //     if let Expression::Gate { a, op, b } = expra {
+    //     //         let expra = map.get(a).unwrap();
+    //     //         println!("    - {a}: {expra:?}");
+    //     //         let exprb = map.get(b).unwrap();
+    //     //         println!("    - {b}: {exprb:?}");
+    //     //     y}
+    //     //     let exprb = map.get(b).unwrap();
+    //     //     println!("  - {b}: {exprb:?}");
+    //     //     if let Expression::Gate { a, op, b } = exprb {
+    //     //         let expra = map.get(a).unwrap();
+    //     //         println!("    - {a}: {expra:?}");
+    //     //         let exprb = map.get(b).unwrap();
+    //     //         println!("    - {b}: {exprb:?}");
+    //     //     }
+    //     // }
+    // }
 
     outputs.sort_unstable();
 
