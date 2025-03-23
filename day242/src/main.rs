@@ -39,6 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect();
 
+    // verify all gates using pattern matching rules
     for (c, (a, op, b)) in &gates {
         match (a, gates.get(a), op, b, gates.get(b), c, inports.get(c)) {
             (
