@@ -2,7 +2,6 @@ use std::error::Error;
 use std::time::Instant;
 use std::{env, fs};
 
-#[allow(clippy::too_many_lines)]
 fn main() -> Result<(), Box<dyn Error>> {
     let t0 = Instant::now();
     let input_path = env::args().nth(1).expect("no input path");
