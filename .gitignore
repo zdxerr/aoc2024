@@ -15,3 +15,8 @@ Cargo.lock
 
 # Original Advent of Code input files
 input.txt
+
+
+# Added by cargo
+
+/target

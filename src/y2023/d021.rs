@@ -6,7 +6,7 @@ const RED: u32 = 12;
 const GREEN: u32 = 13;
 const BLUE: u32 = 14;
 
-fn main() -> Result<(), Error> {
+pub fn part1() -> Result<(), Error> {
     let t0 = Instant::now();
     let input_path = env::args().nth(1).expect("no input path");
     let buff_reader = BufReader::new(fs::File::open(input_path)?);
